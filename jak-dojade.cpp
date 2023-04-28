@@ -39,8 +39,10 @@ struct Information {
     int width;
     int citiesCounter;
     int flightsNum;
-    struct Flights *flights;
-    struct Requests* req;
+    Flights *flights = nullptr;
+    Requests* req = nullptr;
+    Queue* queue = nullptr;
+
 
 };
 
@@ -82,6 +84,12 @@ void createMapAndGetInfoFromInput(Information &info) {
     //}
 
 }
+void freeList(Queue*& queue) {
+    if (queue->next != nullptr)freeList(queue->next);
+    queue = nullptr;
+    delete queue;
+    
+}
 
 void clean(Information& info, City*& city) {
 
@@ -91,6 +99,8 @@ void clean(Information& info, City*& city) {
     for (int i = 0; i < info.citiesCounter; i++) {
         delete[] city[i].roadMap;
     }
+    freeList(info.queue);
+
     delete[] info.map;
     delete[] city;
     delete[] info.flights;
@@ -111,7 +121,7 @@ bool isLetterOrDigit(Information info, int x, int y) {
 }
 
 bool checkIfRoad(Information info, int x, int y) {
-    if (info.map[x][y] == ROAD || info.map[x][y] == CITY)return true;
+    if (info.map[x][y] == ROAD)return true;
     return false;
 }
 
@@ -185,19 +195,44 @@ int queueLen(Queue* head) {
     return len;
 }
 
-void pop() {
+void pop(Queue* head) {
 
 }
-void checkRoadsAround(char road, Information info, Coords curPos) {
-    if (onTheMap(info, curPos.y, curPos.x + 1) && info.map[curPos.y][curPos.x + 1] == ROAD)
-        info.map[curPos.y][curPos.x + 1] = road;
-    if (onTheMap(info, curPos.y, curPos.x - 1) && info.map[curPos.y][curPos.x - 1] == ROAD)
-        info.map[curPos.y][curPos.x - 1] = road;
-    if (onTheMap(info, curPos.y - 1, curPos.x) && info.map[curPos.y - 1][curPos.x] == ROAD)
-        info.map[curPos.y - 1][curPos.x] = road;
-    if (onTheMap(info, curPos.y + 1, curPos.x) && info.map[curPos.y + 1][curPos.x] == ROAD)
-        info.map[curPos.y + 1][curPos.x] = road;
+void addToQueue(Queue* head, Coords pos){
+    if (head->next != nullptr) {
+        addToQueue(head, pos);
+    }
+    else {
+        Queue* node = new Queue;
+        node->coords = pos;
+        node->next = nullptr;
+        head->next = node;
+    }
 }
+void checkRoadsAround(char road, Information info, Queue* front) {
+    Coords newPos;
+    if (onTheMap(info, front->coords.y, front->coords.x + 1) && info.map[front->coords.y][front->coords.x + 1] == ROAD) {
+        info.map[front->coords.y][front->coords.x + 1] = road;
+        newPos.x = front->coords.x + 1;
+        newPos.y = front->coords.y;
+        addToQueue(front, newPos);
+        pop(front);
+    }
+        
+    if (onTheMap(info, front->coords.y, front->coords.x - 1) && info.map[front->coords.y][front->coords.x - 1] == ROAD) {
+        info.map[front->coords.y][front->coords.x - 1] = road;
+    }
+    if (onTheMap(info, front->coords.y - 1, front->coords.x) && info.map[front->coords.y - 1][front->coords.x] == ROAD) {
+        info.map[front->coords.y - 1][front->coords.x] = road;
+    }
+
+    if (onTheMap(info, front->coords.y + 1, front->coords.x) && info.map[front->coords.y + 1][front->coords.x] == ROAD) {
+        info.map[front->coords.y + 1][front->coords.x] = road;
+    }
+
+}
+
+
 
 char** createRoadMap(Information info, City city) {
     char** roadMap = new char* [info.height];
@@ -211,8 +246,10 @@ char** createRoadMap(Information info, City city) {
         }
     }
     roadMap[city.coords.y][city.coords.x] = ++road;
-    checkRoadsAround(++road, info, city.coords);
-
+    Coords pos = city.coords;
+    checkRoadsAround(++road, info, pos);
+    while(queueLen(info.queue) > 0)
+        checkRoadsAround(++road, info, info.queue);
 
     return roadMap;
 }
@@ -238,8 +275,6 @@ void getInfoAboutCities(Information info, City& city)    {
     city.name = getCityName(info, city.coords);
     city.roadMap = createRoadMap(info, city);
 
-    
-
 }
 
 City createVertexes(Information info, int i) {
@@ -252,7 +287,6 @@ City createVertexes(Information info, int i) {
 }
 
 City* createGraph(Information info, Queue* head) {
-
     City* city = new City[info.citiesCounter];
 
     for (int i = 0; i < info.citiesCounter; i++) {
