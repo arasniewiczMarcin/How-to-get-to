@@ -1,4 +1,5 @@
 #include <iostream>
+#include <iomanip>
 
 using namespace std;
 
@@ -21,6 +22,7 @@ struct City {
     int** roadMap = {};
     
 };
+
 struct Flights {
     char* source;
     char* destination;
@@ -54,6 +56,9 @@ struct Information {
 
 };
 
+struct Graph {
+    
+};
 
 int queueLen(Queue* head) {
     int len = 0;
@@ -97,13 +102,11 @@ void addToQueue(Coords pos, int& road, Queue*& curEl, Queue* prevEl) {
         }
 }
 
-Coords front(Queue* head) {
+Queue* front(Queue* head) {
     if (head != nullptr) {
-        return head->coords;
+        return head;
     }
 }
-
-
 
 void createMapAndGetInfoFromInput(Information &info) {
     cin >> info.width >> info.height;
@@ -135,6 +138,7 @@ void createMapAndGetInfoFromInput(Information &info) {
     //}
 
 }
+
 void freeList(Queue*& queue) {
     if (queue != nullptr && queue->next != nullptr)freeList(queue->next);
     queue = nullptr;
@@ -142,13 +146,20 @@ void freeList(Queue*& queue) {
     
 }
 
-void clean(Information& info, City*& city) {
+void freeLinkedCities(City *& city) {
+    if (city != nullptr && city->neighbour != nullptr)freeLinkedCities(city->neighbour);
+    city = nullptr;
+    delete city;
+}
+
+void clean(Information& info, City**& city) {
 
     for (int i = 0; i < info.height; i++) {
         delete[] info.map[i];
     }
     for (int i = 0; i < info.citiesCounter; i++) {
-        delete[] city[i].roadMap;
+        delete[] city[i]->roadMap;
+        freeLinkedCities(city[i]);
     }
     freeList(info.queue);
 
@@ -240,63 +251,85 @@ char* getCityName(Information& info, Coords coords)
 
 void wypiszKolejke(Queue* head) {
     if (head != nullptr) {
-        cout << "Pos: " << front(head).x << " " << front(head).y<<" ";
+        cout << "Pos: " << front(head)->coords.x << " " << front(head)->coords.y<<" ";
         wypiszKolejke(head->next);
     }
 }
 
 bool visited(int** roadMap, Coords pos) {
-    if (roadMap[pos.y][pos.x] == 0) return false;
+    if (roadMap[pos.y][pos.x] == -1) return false;
     return true;
 }
 
-void checkRoadsAround(Information& info, Queue*& q, int**& roadMap) {
+void checkRoadsAround(Information& info, Queue*& q, int**& roadMap, Queue *& neighToLink) {
                                       
     Coords newPos;
-    newPos.x = front(q).x + 1;
-    newPos.y = front(q).y;
-    if (onTheMap(info, front(q).x + 1, front(q).y) && !visited(roadMap, newPos)) {
-        if (info.map[front(q).y][front(q).x + 1] == ROAD) {
-            roadMap[front(q).y][front(q).x + 1] = q->road;
-            addToQueue(newPos, ++q->road, q, q);
+    Coords neigh;
+    newPos.x = front(q)->coords.x + 1;
+    newPos.y = front(q)->coords.y;
+    bool newField = false;
+    if (onTheMap(info, front(q)->coords.x + 1, front(q)->coords.y) && !visited(roadMap, newPos)) {
+        if (newField == false)++q->road;
+        newField = true;
+        if (info.map[front(q)->coords.y][front(q)->coords.x + 1] == ROAD) {
+            roadMap[front(q)->coords.y][front(q)->coords.x + 1] = q->road;
+            addToQueue(newPos, q->road, q, q);
         }
-        else if (info.map[front(q).y][front(q).x + 1] == CITY) {
-            roadMap[front(q).y][front(q).x + 1] = -1;
+        else if (info.map[front(q)->coords.y][front(q)->coords.x + 1] == CITY) {
+            roadMap[front(q)->coords.y][front(q)->coords.x + 1] = q->road;
+            neigh.x = front(q)->coords.x + 1;
+            neigh.y = front(q)->coords.y;
+            addToQueue(neigh, q->road, neighToLink, neighToLink);
         }
 
     }
-    newPos.x = front(q).x - 1;
-    newPos.y = front(q).y;
-    if (onTheMap(info, front(q).x - 1, front(q).y) && !visited(roadMap, newPos)) {
-        if (info.map[front(q).y][front(q).x - 1] == ROAD) {
-            roadMap[front(q).y][front(q).x - 1] = q->road;
-            addToQueue(newPos, ++q->road, q, q);
+    newPos.x = front(q)->coords.x - 1;
+    newPos.y = front(q)->coords.y;
+    if (onTheMap(info, front(q)->coords.x - 1, front(q)->coords.y) && !visited(roadMap, newPos)) {
+        if (newField == false)++q->road;
+        newField = true;
+        if (info.map[front(q)->coords.y][front(q)->coords.x - 1] == ROAD) {
+            roadMap[front(q)->coords.y][front(q)->coords.x - 1] = q->road;
+            addToQueue(newPos, q->road, q, q);
         }
-        else if (info.map[front(q).y][front(q).x - 1] == CITY) {
-            roadMap[front(q).y][front(q).x - 1] = -1;
-        }
-    }
-    newPos.x = front(q).x;
-    newPos.y = front(q).y - 1;
-    if (onTheMap(info, front(q).x, front(q).y - 1) && !visited(roadMap, newPos)) {
-        if (info.map[front(q).y - 1][front(q).x] == ROAD) {
-            roadMap[front(q).y - 1][front(q).x] = q->road;
-            addToQueue(newPos, ++q->road, q, q);
-        }
-        else if (info.map[front(q).y - 1][front(q).x] == CITY) {
-            roadMap[front(q).y - 1][front(q).x] = -1;
+        else if (info.map[front(q)->coords.y][front(q)->coords.x - 1] == CITY) {
+            roadMap[front(q)->coords.y][front(q)->coords.x - 1] = q->road;
+            neigh.x = front(q)->coords.x -1;
+            neigh.y = front(q)->coords.y;
+            addToQueue(neigh, q->road, neighToLink, neighToLink);
         }
     }
-    newPos.x = front(q).x;
-    newPos.y = front(q).y + 1;
-    if (onTheMap(info, front(q).x, front(q).y + 1) && !visited(roadMap, newPos)) {
+    newPos.x = front(q)->coords.x;
+    newPos.y = front(q)->coords.y - 1;
+    if (onTheMap(info, front(q)->coords.x, front(q)->coords.y - 1) && !visited(roadMap, newPos)) {
+        if (newField == false)++q->road;
+        newField = true;
+        if (info.map[front(q)->coords.y - 1][front(q)->coords.x] == ROAD) {
+            roadMap[front(q)->coords.y - 1][front(q)->coords.x] = q->road;
+            addToQueue(newPos, q->road, q, q);
+        }
+        else if (info.map[front(q)->coords.y - 1][front(q)->coords.x] == CITY) {
+            roadMap[front(q)->coords.y - 1][front(q)->coords.x] = q->road;
+            neigh.x = front(q)->coords.x;
+            neigh.y = front(q)->coords.y - 1;
+            addToQueue(neigh, q->road, neighToLink, neighToLink);
+        }
+    }
+    newPos.x = front(q)->coords.x;
+    newPos.y = front(q)->coords.y + 1;
+    if (onTheMap(info, front(q)->coords.x, front(q)->coords.y + 1) && !visited(roadMap, newPos)) {
+        if (newField == false)++q->road;
+        newField = true;
 
-        if (info.map[front(q).y + 1][front(q).x] == ROAD) {
-            roadMap[front(q).y + 1][front(q).x] = q->road;
-            addToQueue(newPos, ++q->road, q, q);
+        if (info.map[front(q)->coords.y + 1][front(q)->coords.x] == ROAD) {
+            roadMap[front(q)->coords.y + 1][front(q)->coords.x] = q->road;
+            addToQueue(newPos, q->road, q, q);
         }
-        else if (info.map[front(q).y + 1][front(q).x] == CITY) {
-            roadMap[front(q).y + 1][front(q).x] = -1;
+        else if (info.map[front(q)->coords.y + 1][front(q)->coords.x] == CITY) {
+            roadMap[front(q)->coords.y + 1][front(q)->coords.x] = q->road;
+            neigh.x = front(q)->coords.x;
+            neigh.y = front(q)->coords.y + 1;
+            addToQueue(neigh, q->road, neighToLink, neighToLink);
         }
     }
     pop(q);
@@ -304,38 +337,44 @@ void checkRoadsAround(Information& info, Queue*& q, int**& roadMap) {
 
 }
 
-int** createRoadMap(Information& info, City city) {
+void linkNeighbours(City*& city, Queue*& neighToLink) {
+    if(queueLen(neighToLink) > 0) {
+        City* newCity = new City;
+        newCity->coords = front(neighToLink)->coords;
+        newCity->timeToNeighbour = front(neighToLink)->road;
+        city->neighbour = newCity;
+        pop(neighToLink);
+        linkNeighbours(city->neighbour, neighToLink);
+    }
+}
+
+int** createRoadMap(Information& info, City*& city, City**& cities) {
     int** roadMap = new int* [info.height];
     for (int i = 0; i < info.height; i++)
         roadMap[i] = new int[info.width];
     
-    int road = 0;
+    int road = -1;
     for (int i = 0; i < info.height; i++) {
         for (int j = 0; j < info.height; j++) {
             roadMap[i][j] = road;
         }
     }
     road++;
-    Coords pos = city.coords;
-    roadMap[pos.y][pos.x] = road++;
+    Coords pos = city->coords;
+    roadMap[pos.y][pos.x] = road;
     addToQueue(pos, road, info.queue, info.queue);
 
-    while (queueLen(info.queue) > 0) {
-        checkRoadsAround(info, info.queue, roadMap);
-    }
+    Queue* neigh = nullptr;
 
-    /*for (int j = 0; j < info.height; j++) {
-        for (int o = 0; o < info.width; o++) {
-            cout << roadMap[j][o];
-        }
-        cout << endl;
+    while (queueLen(info.queue) > 0) {
+        checkRoadsAround(info, info.queue, roadMap, neigh);
     }
-    cout << endl;*/
+    linkNeighbours(city, neigh);
 
     return roadMap;
 }
 
-void getInfoAboutCities(Information info, City& city)    {
+void getInfoAboutCities(Information info, City*& city, City**& cities)    {
     int cityCounter = -1;
     bool found = false;
     for (int j = 0; j < info.height; j++) {
@@ -343,9 +382,9 @@ void getInfoAboutCities(Information info, City& city)    {
             if (info.map[j][o] == CITY)
             {
                 cityCounter++;
-                if (cityCounter == city.cityNum) {
-                    city.coords.x = o;
-                    city.coords.y = j;
+                if (cityCounter == city->cityNum) {
+                    city->coords.x = o;
+                    city->coords.y = j;
                     found = true;
                 }
             }
@@ -353,28 +392,42 @@ void getInfoAboutCities(Information info, City& city)    {
         }
         if (found == true)break;
     }
-    city.name = getCityName(info, city.coords);
-    city.roadMap = createRoadMap(info, city);
+    city->name = getCityName(info, city->coords);
+    city->roadMap = createRoadMap(info, city, cities);
 }
 
-City createVertexes(Information info, int i) {
-    City city;
-    city.cityNum = i;
-    getInfoAboutCities(info, city);
+City* createVertexes(Information info, int i, City**& cities) {
+    City* newCity = new City;
+    newCity->cityNum = i;
+    getInfoAboutCities(info, newCity, cities);
 
-    return city;
+    return newCity;
 }
 
-City* createGraph(Information info, Queue* head) {
-    City* city = new City[info.citiesCounter];
+City** createCities(Information info, Queue* head) {
+    City** cities = new City*[info.citiesCounter];
 
-    city[0] = createVertexes(info, 0);
-
-    /*for (int i = 0; i < info.citiesCounter; i++) {
-        city[i] = createVertexes(info, i);
-    }*/
+    for (int i = 0; i < info.citiesCounter; i++) {
+        cities[i] = createVertexes(info, i, cities);
+    }
     
-    return city;
+    return cities;
+}
+
+void wypiszMiasta(Information info, City* city) {
+    if (city != nullptr) {
+        cout << city->timeToNeighbour << " ";
+        wypiszMiasta(info, city->neighbour);
+    }
+    /*for (int i = 0; i < info.citiesCounter; i++) {
+        for (int o = 0; o < info.height; o++) {
+            for (int p = 0; p < info.width; p++) {
+                cout << city[i]->roadMap[o][p];
+            }
+            cout << endl;
+        }
+        cout << endl<< endl;
+    }*/
 }
 
 int main()
@@ -382,7 +435,25 @@ int main()
     Information info = {};
     createMapAndGetInfoFromInput(info);
     Queue* head = NULL;
-    City* city = createGraph(info, head);
+    City** city = createCities(info, head);
+
+
+    /*for (int i = 0; i < info.citiesCounter; i++) {
+        for (int o = 0; o < info.height; o++) {
+            for (int p = 0; p < info.width; p++) {
+                
+                cout << setw(4)<< city[i]->roadMap[o][p];
+            }
+            cout << endl;
+        }
+        cout << endl << endl;
+    }
+
+    for (int i = 0; i < info.citiesCounter; i++) {
+        wypiszMiasta(info, city[i]);
+        cout << endl;
+    }*/
+    
 
 
     clean(info, city);
